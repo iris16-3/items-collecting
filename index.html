@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Item Collector — Shops & Gachas + Accounts + Trade (Fixed)</title>
+<style>
+  :root{--border:#e6e6e6;--text:#111}
+  html,body{height:100%;margin:0;padding:0;background:white;color:var(--text);font-family:Inter, Arial, system-ui}
+  .app{max-width:980px;margin:0 auto;padding:12px;box-sizing:border-box}
+  header{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  h1{font-size:18px;margin:0}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab{background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:8px;cursor:pointer}
+  .tab.active{box-shadow:0 0 0 3px rgba(0,0,0,0.03) inset}
+  main{display:flex;gap:12px;margin-top:12px}
+  .col{flex:1;min-width:280px}
+  .panel{background:#fff;border:1px solid var(--border);padding:12px;border-radius:10px;margin-bottom:12px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input,select,textarea,button{font-size:15px}
+  input,select,textarea{padding:8px;border:1px solid var(--border);border-radius:8px;width:100%;box-sizing:border-box}
+  button{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer}
+  .list{max-height:360px;overflow:auto}
+  .boxed{border:1px solid var(--border);padding:10px;border-radius:8px;background:white;margin-bottom:8px}
+  .muted{color:#666;font-size:13px}
+  .currency{padding:8px;border-radius:8px;border:1px solid var(--border);min-width:92px;text-align:center;cursor:pointer}
+  .modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:9999;padding:10px}
+  .modal{width:100%;max-width:720px;background:white;padding:14px;border-radius:10px;border:1px solid var(--border);max-height:90vh;overflow:auto}
+  .trade-board{display:flex;gap:12px;flex-wrap:wrap}
+  .trade-box{flex:1;min-width:240px;border:1px solid var(--border);padding:10px;border-radius:8px}
+  .trade-item{border:1px dashed var(--border);padding:8px;border-radius:6px;margin-bottom:6px}
+  .trade-controls{display:flex;gap:8px;justify-content:center;margin-top:8px}
+  .small{font-size:13px;padding:6px 8px}
+  label{display:block;font-size:13px;margin-bottom:6px}
+  @media (max-width:900px){ main{flex-direction:column} .app{padding:10px} .trade-board{flex-direction:column} }
+  html,body{overflow-x:hidden}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Item Collector</h1>
+      <div class="muted">White boxes, mobile friendly — items live under shop/gacha edit</div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="create">Create</button>
+      <button class="tab" data-tab="play">Play</button>
+      <button class="tab" data-tab="trade">Trade</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="col">
+      <!-- CREATE MODE -->
+      <section id="createPanel" class="panel">
+        <h2 style="margin-top:0">Create Mode</h2>
+
+        <div class="panel boxed">
+          <strong>New Shop</strong>
+          <div class="row" style="margin-top:8px">
+            <input id="newShopName" placeholder="Shop name">
+            <button id="createShopBtn">Create</button>
+          </div>
+        </div>
+
+        <div class="panel boxed">
+          <strong>New Gacha</strong>
+          <div class="row" style="margin-top:8px">
+            <input id="newGachaName" placeholder="Gacha name">
+            <input id="newGachaPrice1" type="number" placeholder="1-roll" style="width:120px">
+            <input id="newGachaPrice5" type="number" placeholder="5-roll" style="width:120px">
+            <select id="newGachaCurrency" style="width:120px">
+              <option value="coins">coins</option>
+              <option value="stars">stars</option>
+              <option value="tickets">tickets</option>
+            </select>
+            <button id="createGachaBtn">Create</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Shops</h3>
+          <div id="shopsList" class="list"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Gachas</h3>
+          <div id="gachasList" class="list"></div>
+        </div>
+
+        <div id="editorArea"></div>
+      </section>
+
+      <!-- PLAY MODE -->
+      <section id="playPanel" class="panel" style="display:none">
+        <h2 style="margin-top:0">Play Mode</h2>
+        <div class="panel boxed">
+          <strong>Create Account</strong>
+          <div class="row" style="margin-top:8px">
+            <input id="accName" placeholder="Account name">
+            <input id="accCoins" type="number" placeholder="coins" style="width:100px">
+            <input id="accStars" type="number" placeholder="stars" style="width:100px">
+            <input id="accTickets" type="number" placeholder="tickets" style="width:100px">
+            <button id="createAccBtn">Create</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Accounts</h3>
+          <div id="accountsList" class="list"></div>
+        </div>
+
+        <div id="accountPlayArea" class="panel" style="display:none"></div>
+      </section>
+
+      <!-- TRADE MODE -->
+      <section id="tradePanel" class="panel" style="display:none">
+        <h2 style="margin-top:0">Trade Mode</h2>
+        <div class="panel boxed">
+          <div class="row" style="align-items:center">
+            <div style="flex:1">
+              <label class="muted">Account A</label>
+              <select id="tradeAccA"></select>
+            </div>
+            <div style="flex:1">
+              <label class="muted">Account B (or Random)</label>
+              <select id="tradeAccB"></select>
+            </div>
+            <div style="align-self:end">
+              <button id="startTradeBtn">Start</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="tradeArea" style="display:none" class="panel">
+          <div class="trade-board">
+            <div class="trade-box" id="tradeBoxA">
+              <div class="row"><strong id="tradeAName"></strong><div style="flex:1"></div><button id="addA">+</button></div>
+              <div id="tradeItemsA" style="margin-top:8px"></div>
+            </div>
+            <div style="flex:0 0 100%; text-align:center; margin-top:8px">
+              <div class="trade-controls">
+                <button id="acceptTrade" class="small">Accept</button>
+                <button id="declineTrade" class="small">Decline</button>
+                <button id="surpriseTrade" class="small">Surprise</button>
+                <button id="cancelTrade" class="small">Cancel</button>
+              </div>
+            </div>
+            <div class="trade-box" id="tradeBoxB">
+              <div class="row"><strong id="tradeBName"></strong><div style="flex:1"></div><button id="addB">+</button></div>
+              <div id="tradeItemsB" style="margin-top:8px"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top:8px">Notes: Each inventory instance is listed separately — you can add an instance only once. Random side shows 5 fresh random items each time you press +.</div>
+      </section>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <h3>Persistence & Tools</h3>
+        <div class="muted">Data stored in localStorage under <code>item_game_v2</code></div>
+        <div style="margin-top:8px" class="row">
+          <button id="exportBtn">Export</button>
+          <button id="importBtn">Import</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+      </div>
+
+      <div class="panel muted"><em>Log disabled — removed from UI.</em></div>
+    </div>
+  </main>
+</div>
+
+<div id="modalRoot" style="display:none"></div>
+
+<script>
+const STORAGE_KEY = 'item_game_v2';
+let game = { shops: [], gachas: [], accounts: [], nextId: 1 };
+let tradeState = null;
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) game = JSON.parse(raw);
+  } catch (e) { /* ignore load errors */ }
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); renderAll(); }
+function uid() { if (!game.nextId) game.nextId = 1; return 'id' + (game.nextId++); }
+
+function createEl(tag, options = {}) {
+  const el = document.createElement(tag);
+  if (options.class) el.className = options.class;
+  if (options.text) el.textContent = options.text;
+  if (options.html) el.innerHTML = options.html;
+  if (options.attrs) Object.keys(options.attrs).forEach(k => el.setAttribute(k, options.attrs[k]));
+  if (options.children) options.children.forEach(c => el.appendChild(c));
+  if (options.on) Object.keys(options.on).forEach(k => el.addEventListener(k, options.on[k]));
+  return el;
+}
+
+function findShop(id) { return game.shops.find(s => s.id === id); }
+function findGacha(id) { return game.gachas.find(g => g.id === id); }
+function findAccount(id) { return game.accounts.find(a => a.id === id); }
+function findTemplate(tid) {
+  for (const s of game.shops) { const it = (s.items || []).find(i => i.id === tid); if (it) return { source: 'shop', parentId: s.id, item: it }; }
+  for (const g of game.gachas) { const it = (g.items || []).find(i => i.id === tid); if (it) return { source: 'gacha', parentId: g.id, item: it }; }
+  return null;
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const tab = btn.dataset.tab;
+  document.getElementById('createPanel').style.display = tab === 'create' ? 'block' : 'none';
+  document.getElementById('playPanel').style.display = tab === 'play' ? 'block' : 'none';
+  document.getElementById('tradePanel').style.display = tab === 'trade' ? 'block' : 'none';
+  if (tab === 'trade') populateTradeDropdowns();
+}));
+
+// Render lists
+function renderCreateLists() {
+  const shopsDiv = document.getElementById('shopsList'); shopsDiv.innerHTML = '';
+  if (!game.shops || game.shops.length === 0) shopsDiv.appendChild(createEl('div', { class: 'muted', text: 'No shops yet.' }));
+  (game.shops || []).forEach(s => {
+    const row = createEl('div', { class: 'boxed' });
+    const titleRow = createEl('div', { class: 'row' });
+    titleRow.appendChild(createEl('strong', { text: s.name }));
+    titleRow.appendChild(createEl('div', { attrs: { style: 'flex:1' } }));
+    const editBtn = createEl('button', { text: 'Edit' }); editBtn.addEventListener('click', () => editShop(s.id));
+    const delBtn = createEl('button', { text: 'Delete' }); delBtn.addEventListener('click', () => { if (confirm('Delete shop?')) { game.shops = game.shops.filter(x => x.id !== s.id); save(); } });
+    const togBtn = createEl('button', { text: s.active ? 'Deactivate' : 'Activate' }); togBtn.addEventListener('click', () => { s.active = !s.active; save(); });
+    titleRow.appendChild(editBtn); titleRow.appendChild(delBtn); titleRow.appendChild(togBtn);
+    row.appendChild(titleRow); shopsDiv.appendChild(row);
+  });
+
+  const gachaDiv = document.getElementById('gachasList'); gachaDiv.innerHTML = '';
+  if (!game.gachas || game.gachas.length === 0) gachaDiv.appendChild(createEl('div', { class: 'muted', text: 'No gachas yet.' }));
+  (game.gachas || []).forEach(g => {
+    const row = createEl('div', { class: 'boxed' });
+    const titleRow = createEl('div', { class: 'row' });
+    titleRow.appendChild(createEl('strong', { text: g.name }));
+    titleRow.appendChild(createEl('div', { attrs: { style: 'flex:1' } }));
+    titleRow.appendChild(createEl('div', { class: 'muted', text: `1x:${g.price1||0} 5x:${g.price5||0} (${g.currency||'coins'})` }));
+    const editBtn = createEl('button', { text: 'Edit' }); editBtn.addEventListener('click', () => editGacha(g.id));
+    const delBtn = createEl('button', { text: 'Delete' }); delBtn.addEventListener('click', () => { if (confirm('Delete gacha?')) { game.gachas = game.gachas.filter(x => x.id !== g.id); save(); } });
+    const togBtn = createEl('button', { text: g.active ? 'Deactivate' : 'Activate' }); togBtn.addEventListener('click', () => { g.active = !g.active; save(); });
+    titleRow.appendChild(editBtn); titleRow.appendChild(delBtn); titleRow.appendChild(togBtn);
+    row.appendChild(titleRow); gachaDiv.appendChild(row);
+  });
+}
+
+// Create handlers
+const createShopBtn = document.getElementById('createShopBtn');
+if (createShopBtn) createShopBtn.addEventListener('click', () => {
+  const nameInput = document.getElementById('newShopName'); const name = (nameInput.value || '').trim(); if (!name) return alert('Enter shop name');
+  game.shops.push({ id: uid(), name, active: true, items: [] }); nameInput.value = ''; save();
+});
+
+const createGachaBtn = document.getElementById('createGachaBtn');
+if (createGachaBtn) createGachaBtn.addEventListener('click', () => {
+  const nameInput = document.getElementById('newGachaName'); const name = (nameInput.value || '').trim(); if (!name) return alert('Enter gacha name');
+  const p1 = Number(document.getElementById('newGachaPrice1').value || 0); const p5 = Number(document.getElementById('newGachaPrice5').value || 0);
+  const cur = document.getElementById('newGachaCurrency').value || 'coins';
+  game.gachas.push({ id: uid(), name, price1: p1, price5: p5, currency: cur, active: true, items: [] });
+  nameInput.value = ''; document.getElementById('newGachaPrice1').value = ''; document.getElementById('newGachaPrice5').value = ''; save();
+});
+
+// Edit shop
+function editShop(shopId) {
+  const s = findShop(shopId); if (!s) return; const editor = document.getElementById('editorArea'); editor.innerHTML = '';
+
+  const wrap = createEl('div', { class: 'panel' }); wrap.appendChild(createEl('h3', { text: 'Editing Shop: ' + s.name }));
+
+  const nameRow = createEl('div', { class: 'row' }); const nameInput = createEl('input', { attrs: { type: 'text', value: s.name, style: 'flex:1' } });
+  const saveNameBtn = createEl('button', { text: 'Save Name' }); saveNameBtn.addEventListener('click', () => { const v = (nameInput.value || '').trim(); if (!v) return alert('Name required'); s.name = v; save(); editor.innerHTML = ''; });
+  nameRow.appendChild(nameInput); nameRow.appendChild(saveNameBtn); wrap.appendChild(nameRow);
+
+  const addForm = createEl('div', { class: 'panel boxed' }); addForm.appendChild(createEl('h4', { text: 'Add Item to Shop' }));
+  const rowInputs = createEl('div', { class: 'row' }); const itName = createEl('input', { attrs: { placeholder: 'name', style: 'flex:1' } }); const itType = createEl('input', { attrs: { placeholder: 'type', style: 'width:120px' } });
+  rowInputs.appendChild(itName); rowInputs.appendChild(itType); addForm.appendChild(rowInputs);
+  const itDesc = createEl('textarea', { attrs: { placeholder: 'description', rows: 2, style: 'width:100%' } }); addForm.appendChild(itDesc);
+  const rowBottom = createEl('div', { class: 'row' });
+  const itValue = createEl('input', { attrs: { type: 'number', placeholder: 'value', style: 'width:100px' } });
+  const itPrice = createEl('input', { attrs: { type: 'number', placeholder: 'price', style: 'width:100px' } });
+  const itCurrency = createEl('select'); ['coins','stars','tickets'].forEach(c => itCurrency.appendChild(createEl('option', { attrs: { value: c }, text: c })));
+  const addItemBtn = createEl('button', { text: 'Add Item' });
+  addItemBtn.addEventListener('click', () => {
+    const name = (itName.value || '').trim(); if (!name) return alert('Enter item name');
+    const item = { id: uid(), name, type: (itType.value || '').trim(), desc: (itDesc.value || '').trim(), value: Number(itValue.value || 0), price: Number(itPrice.value || 0), currency: itCurrency.value || 'coins' };
+    s.items = s.items || []; s.items.push(item);
+    itName.value = ''; itType.value = ''; itDesc.value = ''; itValue.value = ''; itPrice.value = '';
+    save(); editShop(shopId);
+  });
+  rowBottom.appendChild(itValue); rowBottom.appendChild(itPrice); rowBottom.appendChild(itCurrency); rowBottom.appendChild(addItemBtn); addForm.appendChild(rowBottom); wrap.appendChild(addForm);
+
+  const itemsWrap = createEl('div'); itemsWrap.appendChild(createEl('h4', { text: 'Items in this Shop' }));
+  if (!s.items || s.items.length === 0) itemsWrap.appendChild(createEl('div', { class: 'muted', text: 'No items' }));
+  (s.items || []).forEach(it => {
+    const r = createEl('div', { class: 'boxed' }); const row = createEl('div', { class: 'row' });
+    row.appendChild(createEl('div', { text: it.name + (it.price ? ' — ' + it.price + ' ' + it.currency : '') })); row.appendChild(createEl('div', { attrs: { style: 'flex:1' } }));
+    const editBtn = createEl('button', { text: 'Edit' }); editBtn.addEventListener('click', () => editShopItem(s.id, it.id));
+    const delBtn = createEl('button', { text: 'Delete' }); delBtn.addEventListener('click', () => { if (!confirm('Delete this item template? (existing inventory instances will show as "missing")')) return; s.items = s.items.filter(x => x.id !== it.id); save(); editShop(shopId); });
+    row.appendChild(editBtn); row.appendChild(delBtn); r.appendChild(row); itemsWrap.appendChild(r);
+  });
+  wrap.appendChild(itemsWrap); editor.appendChild(wrap);
+}
+
+function editShopItem(shopId, itemId) {
+  const s = findShop(shopId); if (!s) return; const item = (s.items || []).find(x => x.id === itemId); if (!item) return;
+  const modal = createModal(); const box = createEl('div');
+  box.appendChild(createEl('h3', { text: 'Edit Item Template' }));
+
+  const nameLabel = createEl('label', { text: 'Name' });
+  const nameInput = createEl('input', { attrs: { value: item.name, style: 'width:100%' } });
+
+  const typeLabel = createEl('label', { text: 'Type' });
+  const typeInput = createEl('input', { attrs: { value: item.type, style: 'width:100%' } });
+
+  const descLabel = createEl('label', { text: 'Description' });
+  const descInput = createEl('textarea', { attrs: { rows: 3, style: 'width:100%' }, text: item.desc });
+
+  const row = createEl('div', { class: 'row' });
+  const valWrap = createEl('div'); valWrap.appendChild(createEl('label', { text: 'Value' }));
+  const valInput = createEl('input', { attrs: { type: 'number', value: item.value || 0 } }); valWrap.appendChild(valInput);
+
+  const priceWrap = createEl('div'); priceWrap.appendChild(createEl('label', { text: 'Price' }));
+  const priceInput = createEl('input', { attrs: { type: 'number', value: item.price || 0 } }); priceWrap.appendChild(priceInput);
+
+  const curWrap = createEl('div'); curWrap.appendChild(createEl('label', { text: 'Currency' }));
+  const curSelect = createEl('select'); ['coins','stars','tickets'].forEach(c => { const opt = createEl('option', { attrs: { value: c }, text: c }); if (item.currency === c) opt.selected = true; curSelect.appendChild(opt); });
+  curWrap.appendChild(curSelect);
+
+  row.appendChild(valWrap); row.appendChild(priceWrap); row.appendChild(curWrap);
+
+  const btnRow = createEl('div', { class: 'row' });
+  const saveBtn = createEl('button', { text: 'Save' });
+  saveBtn.addEventListener('click', () => {
+    item.name = (nameInput.value || '').trim();
+    item.type = (typeInput.value || '').trim();
+    item.desc = (descInput.value || '').trim();
+    item.value = Number(valInput.value || 0);
+    item.price = Number(priceInput.value || 0);
+    item.currency = curSelect.value || 'coins';
+    save(); closeModal(modal); editShop(shopId);
+  });
+  const cancelBtn = createEl('button', { text: 'Cancel' }); cancelBtn.addEventListener('click', () => closeModal(modal));
+  btnRow.appendChild(saveBtn); btnRow.appendChild(cancelBtn);
+
+  box.appendChild(nameLabel); box.appendChild(nameInput);
+  box.appendChild(typeLabel); box.appendChild(typeInput);
+  box.appendChild(descLabel); box.appendChild(descInput);
+  box.appendChild(row);
+  box.appendChild(btnRow);
+  modal.querySelector('.modal').appendChild(box);
+}
+
+// Edit gacha
+function editGacha(gachaId) {
+  const g = findGacha(gachaId); if (!g) return; const editor = document.getElementById('editorArea'); editor.innerHTML = '';
+  const wrap = createEl('div', { class: 'panel' }); wrap.appendChild(createEl('h3', { text: 'Editing Gacha: ' + g.name }));
+  const nameRow = createEl('div', { class: 'row' });
+  const nameInput = createEl('input', { attrs: { type: 'text', value: g.name, style: 'flex:1' } });
+  const curSelect = createEl('select'); ['coins','stars','tickets'].forEach(c => { const opt = createEl('option', { attrs: { value: c }, text: c }); if (g.currency === c) opt.selected = true; curSelect.appendChild(opt); });
+  const p1 = createEl('input', { attrs: { type: 'number', value: g.price1 || 0, style: 'width:110px' } });
+  const p5 = createEl('input', { attrs: { type: 'number', value: g.price5 || 0, style: 'width:110px' } });
+  const saveBtn = createEl('button', { text: 'Save' }); saveBtn.addEventListener('click', () => { const v = (nameInput.value || '').trim(); if (!v) return alert('Name required'); g.name = v; g.price1 = Number(p1.value || 0); g.price5 = Number(p5.value || 0); g.currency = curSelect.value || 'coins'; save(); editor.innerHTML = ''; });
+  nameRow.appendChild(nameInput); nameRow.appendChild(curSelect); nameRow.appendChild(p1); nameRow.appendChild(p5); nameRow.appendChild(saveBtn); wrap.appendChild(nameRow);
+
+  const addForm = createEl('div', { class: 'panel boxed' }); addForm.appendChild(createEl('h4', { text: 'Add Item to Gacha' }));
+  const itName = createEl('input', { attrs: { placeholder: 'name', style: 'flex:1' } });
+  const itType = createEl('input', { attrs: { placeholder: 'type', style: 'width:120px' } }); addForm.appendChild(createEl('div', { class: 'row', children: [itName, itType] }));
+  const itDesc = createEl('textarea', { attrs: { placeholder: 'description', rows: 2, style: 'width:100%' } }); addForm.appendChild(itDesc);
+  const itValue = createEl('input', { attrs: { type: 'number', placeholder: 'value', style: 'width:100px' } });
+  const itChance = createEl('input', { attrs: { type: 'number', placeholder: 'chance (1-100)', style: 'width:120px' } });
+  const addItemBtn = createEl('button', { text: 'Add Item' });
+  addItemBtn.addEventListener('click', () => { const name = (itName.value || '').trim(); const chance = Number(itChance.value || 0); if (!name) return alert('Name required'); if (!(chance > 0 && chance <= 100)) return alert('Chance 1-100'); const item = { id: uid(), name, type: (itType.value || '').trim(), desc: (itDesc.value || '').trim(), value: Number(itValue.value || 0), chance }; g.items = g.items || []; g.items.push(item); itName.value = ''; itType.value = ''; itDesc.value = ''; itValue.value = ''; itChance.value = ''; save(); editGacha(gachaId); });
+  addForm.appendChild(createEl('div', { class: 'row', children: [itValue, itChance, addItemBtn] })); wrap.appendChild(addForm);
+
+  const itemsWrap = createEl('div'); itemsWrap.appendChild(createEl('h4', { text: 'Items in this Gacha' }));
+  const total = (g.items || []).reduce((s, i) => s + (Number(i.chance) || 0), 0);
+  itemsWrap.appendChild(createEl('div', { class: 'muted', text: 'Total chance: ' + total + '% ' + (Math.round(total) !== 100 ? ' — (should equal 100%)' : '') }));
+  if (!g.items || g.items.length === 0) itemsWrap.appendChild(createEl('div', { class: 'muted', text: 'No items' }));
+  (g.items || []).forEach(it => {
+    const r = createEl('div', { class: 'boxed' }); const row = createEl('div', { class: 'row' });
+    row.appendChild(createEl('div', { text: it.name + ' (' + (it.chance || 0) + '%)' })); row.appendChild(createEl('div', { attrs: { style: 'flex:1' } }));
+    const editBtn = createEl('button', { text: 'Edit' }); editBtn.addEventListener('click', () => editGachaItem(g.id, it.id));
+    const delBtn = createEl('button', { text: 'Delete' }); delBtn.addEventListener('click', () => { if (!confirm('Delete this item template? (existing inventory instances will show as "missing")')) return; g.items = g.items.filter(x => x.id !== it.id); save(); editGacha(gachaId); });
+    row.appendChild(editBtn); row.appendChild(delBtn); r.appendChild(row); itemsWrap.appendChild(r);
+  });
+  wrap.appendChild(itemsWrap); editor.appendChild(wrap);
+}
+
+function editGachaItem(gId, itemId) {
+  const g = findGacha(gId); if (!g) return; const it = (g.items || []).find(x => x.id === itemId); if (!it) return; const modal = createModal(); const box = createEl('div');
+  box.appendChild(createEl('h3', { text: 'Edit Gacha Item' }));
+  const nameInput = createEl('input', { attrs: { value: it.name, style: 'width:100%' } });
+  const typeInput = createEl('input', { attrs: { value: it.type, style: 'width:100%' } });
+  const descInput = createEl('textarea', { attrs: { rows: 3, style: 'width:100%' }, text: it.desc });
+  const valInput = createEl('input', { attrs: { type: 'number', value: it.value || 0 } });
+  const chanceInput = createEl('input', { attrs: { type: 'number', value: it.chance || 0 } });
+  box.appendChild(createEl('label', { text: 'Name' })); box.appendChild(nameInput);
+  box.appendChild(createEl('label', { text: 'Type' })); box.appendChild(typeInput);
+  box.appendChild(createEl('label', { text: 'Description' })); box.appendChild(descInput);
+  box.appendChild(createEl('div', { class: 'row', children: [createEl('div', { children: [createEl('label', { text: 'Value' }), valInput] }), createEl('div', { children: [createEl('label', { text: 'Chance' }), chanceInput] })] }));
+  const saveBtn = createEl('button', { text: 'Save' }); saveBtn.addEventListener('click', () => { it.name = (nameInput.value || '').trim(); it.type = (typeInput.value || '').trim(); it.desc = (descInput.value || '').trim(); it.value = Number(valInput.value || 0); it.chance = Number(chanceInput.value || 0); if (!(it.chance > 0 && it.chance <= 100)) return alert('Chance must be 1-100'); save(); closeModal(modal); editGacha(gId); });
+  const cancelBtn = createEl('button', { text: 'Cancel' }); cancelBtn.addEventListener('click', () => closeModal(modal));
+  box.appendChild(createEl('div', { class: 'row', children: [saveBtn, cancelBtn] })); modal.querySelector('.modal').appendChild(box);
+}
+
+// PLAY MODE
+function renderAccounts() {
+  const list = document.getElementById('accountsList'); list.innerHTML = '';
+  if (!game.accounts || game.accounts.length === 0) list.appendChild(createEl('div', { class: 'muted', text: 'No accounts yet.' }));
+  (game.accounts || []).forEach(a => {
+    const row = createEl('div', { class: 'boxed' }); const r = createEl('div', { class: 'row' });
+    r.appendChild(createEl('strong', { text: a.name })); r.appendChild(createEl('div', { attrs: { style: 'flex:1' } }));
+    const c1 = createEl('div', { class: 'currency', text: 'Coins: ' + ((a.currencies && a.currencies.coins) || 0) }); c1.addEventListener('click', () => editCurrency(a.id, 'coins'));
+    const c2 = createEl('div', { class: 'currency', text: 'Stars: ' + ((a.currencies && a.currencies.stars) || 0) }); c2.addEventListener('click', () => editCurrency(a.id, 'stars'));
+    const c3 = createEl('div', { class: 'currency', text: 'Tickets: ' + ((a.currencies && a.currencies.tickets) || 0) }); c3.addEventListener('click', () => editCurrency(a.id, 'tickets'));
+    const playBtn = createEl('button', { text: 'Play' }); playBtn.addEventListener('click', () => openAccount(a.id));
+    const delBtn = createEl('button', { text: 'Delete' }); delBtn.addEventListener('click', () => { if (!confirm('Delete account?')) return; game.accounts = game.accounts.filter(x => x.id !== a.id); save(); });
+    r.appendChild(c1); r.appendChild(c2); r.appendChild(c3); r.appendChild(playBtn); r.appendChild(delBtn); row.appendChild(r); list.appendChild(row);
+  });
+}
+
+const createAccBtn = document.getElementById('createAccBtn');
+if (createAccBtn) createAccBtn.addEventListener('click', () => {
+  const name = (document.getElementById('accName').value || '').trim(); if (!name) return alert('Enter name');
+  const ac = { id: uid(), name, currencies: { coins: Number(document.getElementById('accCoins').value || 0), stars: Number(document.getElementById('accStars').value || 0), tickets: Number(document.getElementById('accTickets').value || 0) }, inventory: [] };
+  game.accounts = game.accounts || []; game.accounts.push(ac);
+  document.getElementById('accName').value = ''; document.getElementById('accCoins').value = '0'; document.getElementById('accStars').value = '0'; document.getElementById('accTickets').value = '0';
+  save();
+});
+
+let currentAccountId = null;
+function openAccount(id) {
+  currentAccountId = id; const a = findAccount(id); if (!a) return; const playArea = document.getElementById('accountPlayArea'); playArea.innerHTML = '';
+  const header = createEl('div'); header.appendChild(createEl('div', { class: 'row', children: [ createEl('h3', { text: a.name }), createEl('div', { attrs: { style: 'flex:1' } }), createEl('div', { class: 'muted', text: 'Total value: ' + calcTotalValue(a) }) ] }));
+  playArea.appendChild(header);
+  playArea.appendChild(createEl('div', { class: 'row', children: [ createEl('button', { text: 'Open Shop/Gacha', on: { click: () => openShopGachaPopup() } }) ] }));
+
+  playArea.appendChild(createEl('h4', { text: 'Inventory' }));
+  const invBox = createEl('div', { class: 'list boxed', attrs: { style: 'max-height:300px;overflow:auto' } });
+  const resolved = (a.inventory || []).map(inst => { const t = findTemplate(inst.templateId); return { uid: inst.uid, name: t ? t.item.name : '(missing)', desc: t ? t.item.desc : 'Template removed', value: t ? t.item.value : 0 }; }).sort((x, y) => x.name.localeCompare(y.name));
+  if (resolved.length === 0) invBox.appendChild(createEl('div', { class: 'muted', text: 'Inventory empty' }));
+  resolved.forEach(it => invBox.appendChild(createEl('div', { class: 'boxed', children: [ createEl('div', { class: 'row', children: [ createEl('div', { children: [ createEl('strong', { text: it.name }) ] }), createEl('div', { attrs: { style: 'flex:1' } }), createEl('div', { text: 'Value: ' + (it.value || 0) }) ] }), createEl('div', { text: it.desc }) ] })));
+  playArea.appendChild(invBox);
+  playArea.appendChild(createEl('div', { class: 'row', children: [ createEl('button', { text: 'Quick Delete', on: { click: () => quickDelete(currentAccountId) } }), createEl('button', { text: 'Close', on: { click: () => { currentAccountId = null; playArea.style.display = 'none'; } } }) ] }));
+  playArea.style.display = 'block'; playArea.scrollIntoView(); renderAccounts();
+}
+
+function calcTotalValue(account) { return (account.inventory || []).reduce((s, inst) => { const t = findTemplate(inst.templateId); return s + (t ? Number(t.item.value || 0) : 0); }, 0); }
+
+function editCurrency(accountId, cur) { const a = findAccount(accountId); if (!a) return; const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Edit ' + cur })); const input = createEl('input', { attrs: { type: 'number', value: (a.currencies && a.currencies[cur]) || 0 } }); box.appendChild(input); const saveBtn = createEl('button', { text: 'Save' }); saveBtn.addEventListener('click', () => { a.currencies[cur] = Number(input.value || 0); save(); closeModal(modal); openAccount(accountId); }); const cancelBtn = createEl('button', { text: 'Cancel' }); cancelBtn.addEventListener('click', () => closeModal(modal)); box.appendChild(createEl('div', { class: 'row', children: [saveBtn, cancelBtn] })); modal.querySelector('.modal').appendChild(box); }
+
+function openShopGachaPopup() { const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Active Shops & Gachas' })); const activeShops = (game.shops || []).filter(s => s.active); const activeGachas = (game.gachas || []).filter(g => g.active); if (activeShops.length === 0 && activeGachas.length === 0) box.appendChild(createEl('div', { class: 'muted', text: 'No active shops/gachas' })); activeShops.forEach(s => { const row = createEl('div', { class: 'boxed' }); const r = createEl('div', { class: 'row' }); r.appendChild(createEl('strong', { text: s.name })); r.appendChild(createEl('div', { attrs: { style: 'flex:1' } })); const openBtn = createEl('button', { text: 'Open' }); openBtn.addEventListener('click', () => showShopBuy(s.id, modal)); r.appendChild(openBtn); row.appendChild(r); box.appendChild(row); }); activeGachas.forEach(g => { const row = createEl('div', { class: 'boxed' }); const r = createEl('div', { class: 'row' }); r.appendChild(createEl('strong', { text: g.name + ' (' + g.currency + ')' })); r.appendChild(createEl('div', { attrs: { style: 'flex:1' } })); r.appendChild(createEl('div', { class: 'muted', text: '1x:' + (g.price1 || 0) + ' 5x:' + (g.price5 || 0) })); const openBtn = createEl('button', { text: 'Open' }); openBtn.addEventListener('click', () => showGachaRoll(g.id, modal)); r.appendChild(openBtn); row.appendChild(r); box.appendChild(row); }); modal.querySelector('.modal').appendChild(box); }
+
+function showShopBuy(shopId, parentModal) { const s = findShop(shopId); if (!s) return; const acc = findAccount(currentAccountId); if (!acc) return alert('No account open'); const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Shop: ' + s.name })); if (!s.items || s.items.length === 0) box.appendChild(createEl('div', { class: 'muted', text: 'No items' })); (s.items || []).forEach(it => { const row = createEl('div', { class: 'boxed' }); const r = createEl('div', { class: 'row' }); const left = createEl('div'); left.appendChild(createEl('strong', { text: it.name })); left.appendChild(createEl('div', { class: 'muted', text: it.desc || '' })); r.appendChild(left); r.appendChild(createEl('div', { attrs: { style: 'flex:1' } })); r.appendChild(createEl('div', { text: (it.price || 0) + ' ' + (it.currency || 'coins') })); const buyBtn = createEl('button', { text: 'Buy' }); buyBtn.addEventListener('click', () => { if ((acc.currencies && acc.currencies[it.currency] || 0) >= (it.price || 0)) { acc.currencies[it.currency] = (acc.currencies[it.currency] || 0) - (it.price || 0); acc.inventory = acc.inventory || []; acc.inventory.push({ uid: uid(), templateId: it.id, source: 'shop', parentId: s.id }); save(); closeModal(modal); closeModal(parentModal); openAccount(acc.id); alert('Bought ' + it.name); } else alert('Not enough ' + it.currency); }); r.appendChild(buyBtn); row.appendChild(r); box.appendChild(row); }); modal.querySelector('.modal').appendChild(box); }
+
+function showGachaRoll(gid, parentModal) { const g = findGacha(gid); if (!g) return; const acc = findAccount(currentAccountId); if (!acc) return alert('No account open'); const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Gacha: ' + g.name + ' (' + g.currency + ')' })); box.appendChild(createEl('div', { class: 'muted', text: 'Items and chances:' })); if (!g.items || g.items.length === 0) box.appendChild(createEl('div', { class: 'muted', text: 'No items' })); (g.items || []).forEach(it => box.appendChild(createEl('div', { class: 'boxed', children: [ createEl('div', { class: 'row', children: [ createEl('strong', { text: it.name }), createEl('div', { attrs: { style: 'flex:1' } }), createEl('div', { class: 'muted', text: (it.chance || 0) + '%' }) ] }) ] })));
+
+  function doRolls(n) {
+    const price = n === 1 ? g.price1 : g.price5;
+    if ((acc.currencies && acc.currencies[g.currency] || 0) < price) return alert('Not enough ' + g.currency);
+    const total = (g.items || []).reduce((s, i) => s + (Number(i.chance) || 0), 0);
+    if (Math.round(total) !== 100) return alert('Gacha chances invalid (sum != 100)');
+    acc.currencies[g.currency] = (acc.currencies[g.currency] || 0) - price;
+    const results = [];
+    for (let i = 0; i < n; i++) {
+      const chosen = sampleByChance(g.items);
+      acc.inventory = acc.inventory || [];
+      acc.inventory.push({ uid: uid(), templateId: chosen.id, source: 'gacha', parentId: g.id });
+      results.push(chosen);
+    }
+    save(); closeModal(modal); closeModal(parentModal); openAccount(acc.id);
+    const rmodal = createModal(); const rbox = createEl('div'); rbox.appendChild(createEl('h3', { text: `You got (${n})` })); results.forEach(r => rbox.appendChild(createEl('div', { text: r.name + (r.chance ? ' — ' + r.chance + '%' : '') }))); rbox.appendChild(createEl('div', { class: 'row', children: [ createEl('button', { text: 'OK', on: { click: () => closeModal(rmodal) } }) ] })); modal.querySelector('.modal').appendChild(rbox);
+  }
+
+  const rollRow = createEl('div', { class: 'row' });
+  const r1 = createEl('button', { text: 'Roll 1 (' + (g.price1 || 0) + ' ' + g.currency + ')' }); r1.addEventListener('click', () => doRolls(1));
+  const r5 = createEl('button', { text: 'Roll 5 (' + (g.price5 || 0) + ' ' + g.currency + ')' }); r5.addEventListener('click', () => doRolls(5));
+  rollRow.appendChild(r1); rollRow.appendChild(r5); box.appendChild(rollRow);
+  modal.querySelector('.modal').appendChild(box);
+}
+
+function sampleByChance(items) {
+  const total = (items || []).reduce((s, i) => s + (Number(i.chance) || 0), 0);
+  if (Math.round(total) !== 100) return null;
+  const r = Math.random() * 100; let cum = 0;
+  for (const it of items) { cum += Number(it.chance) || 0; if (r < cum) return it; }
+  return (items || [])[items.length - 1];
+}
+
+function quickDelete(accountId) {
+  const a = findAccount(accountId); if (!a) return; const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Quick Delete' })); box.appendChild(createEl('div', { class: 'muted', text: 'Select instances to delete (each instance listed separately)' }));
+  const list = createEl('div', { attrs: { style: 'max-height:300px;overflow:auto;margin-top:8px' } });
+  const resolved = (a.inventory || []).map(inst => ({ uid: inst.uid, label: (findTemplate(inst.templateId) ? findTemplate(inst.templateId).item.name : '(missing)') })).sort((x, y) => x.label.localeCompare(y.label));
+  if (resolved.length === 0) list.appendChild(createEl('div', { class: 'muted', text: 'No items' }));
+  resolved.forEach((it, idx) => { const row = createEl('div', { class: 'row' }); const cb = createEl('input', { attrs: { type: 'checkbox', id: 'qd_' + idx } }); row.appendChild(cb); row.appendChild(createEl('label', { text: it.label })); list.appendChild(row); });
+  box.appendChild(list);
+  const actions = createEl('div', { class: 'row' }); const delBtn = createEl('button', { text: 'Delete Selected' });
+  delBtn.addEventListener('click', () => { const toRemove = []; resolved.forEach((it, idx) => { const cb = document.getElementById('qd_' + idx); if (cb && cb.checked) toRemove.push(it.uid); }); a.inventory = (a.inventory || []).filter(x => !toRemove.includes(x.uid)); save(); closeModal(modal); openAccount(accountId); });
+  const cancelBtn = createEl('button', { text: 'Cancel' }); cancelBtn.addEventListener('click', () => closeModal(modal)); actions.appendChild(delBtn); actions.appendChild(cancelBtn); box.appendChild(actions); modal.querySelector('.modal').appendChild(box);
+}
+
+// MODAL HELPERS
+function createModal() { const root = document.getElementById('modalRoot'); root.style.display = 'block'; const back = createEl('div', { class: 'modal-back' }); const modal = createEl('div', { class: 'modal' }); back.appendChild(modal); root.appendChild(back); back.addEventListener('click', (ev) => { if (ev.target === back) closeModal(back); }); return back; }
+function closeModal(elm) { if (!elm) return; if (elm.parentNode) elm.remove(); const root = document.getElementById('modalRoot'); root.style.display = root.children.length ? 'block' : 'none'; }
+
+// EXPORT/IMPORT/RESET
+const exportBtn = document.getElementById('exportBtn'); if (exportBtn) exportBtn.addEventListener('click', () => { const data = JSON.stringify(game, null, 2); const blob = new Blob([data], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'item_game_export.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
+
+const importBtn = document.getElementById('importBtn'); if (importBtn) importBtn.addEventListener('click', () => {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json';
+  inp.onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { try { const obj = JSON.parse(ev.target.result); if (confirm('Import will replace current data. Continue?')) { game = obj; if (!game.nextId) game.nextId = 1; save(); alert('Imported'); } } catch (err) { alert('Invalid file'); } }; r.readAsText(f); };
+  inp.click();
+});
+
+const resetBtn = document.getElementById('resetBtn'); if (resetBtn) resetBtn.addEventListener('click', () => { if (!confirm('This will erase saved data. OK?')) return; localStorage.removeItem(STORAGE_KEY); game = { shops: [], gachas: [], accounts: [], nextId: 1 }; save(); alert('Reset complete'); });
+
+// TRADE MODE
+function populateTradeDropdowns() {
+  const a = document.getElementById('tradeAccA'); const b = document.getElementById('tradeAccB'); if (!a || !b) return; a.innerHTML = ''; b.innerHTML = '';
+  a.appendChild(createEl('option', { attrs: { value: '' }, text: '-- pick account --' }));
+  (game.accounts || []).forEach(ac => a.appendChild(createEl('option', { attrs: { value: ac.id }, text: ac.name })));
+  b.appendChild(createEl('option', { attrs: { value: '' }, text: '-- pick account or random --' }));
+  (game.accounts || []).forEach(ac => b.appendChild(createEl('option', { attrs: { value: ac.id }, text: ac.name })));
+  b.appendChild(createEl('option', { attrs: { value: 'random' }, text: 'Simulated Random' }));
+}
+
+const startTradeBtn = document.getElementById('startTradeBtn'); if (startTradeBtn) startTradeBtn.addEventListener('click', () => {
+  const a = document.getElementById('tradeAccA').value; const b = document.getElementById('tradeAccB').value;
+  if (!a || !b) return alert('Select two parties (second may be Simulated Random)');
+  if (a === b) return alert('Pick two different parties');
+  startTrade(a, b);
+});
+
+const cancelTradeBtn = document.getElementById('cancelTrade'); if (cancelTradeBtn) cancelTradeBtn.addEventListener('click', () => { tradeState = null; document.getElementById('tradeArea').style.display = 'none'; renderAll(); });
+const acceptTradeBtn = document.getElementById('acceptTrade'); if (acceptTradeBtn) acceptTradeBtn.addEventListener('click', () => executeTrade(true));
+const declineTradeBtn = document.getElementById('declineTrade'); if (declineTradeBtn) declineTradeBtn.addEventListener('click', () => executeTrade(false));
+const surpriseTradeBtn = document.getElementById('surpriseTrade'); if (surpriseTradeBtn) surpriseTradeBtn.addEventListener('click', () => { const ok = Math.random() < 0.5; executeTrade(ok); });
+
+function startTrade(accA, accB) {
+  tradeState = { a: { who: accA, items: [] }, b: { who: accB, items: [] } };
+  document.getElementById('tradeArea').style.display = 'block';
+  document.getElementById('tradeAName').textContent = accA === 'random' ? 'Random' : (findAccount(accA)?.name || 'Missing');
+  document.getElementById('tradeBName').textContent = accB === 'random' ? 'Random' : (findAccount(accB)?.name || 'Missing');
+  renderTradeBoxes();
+}
+
+function renderTradeBoxes() {
+  const aBox = document.getElementById('tradeItemsA'); const bBox = document.getElementById('tradeItemsB'); if (!aBox || !bBox) return; aBox.innerHTML = ''; bBox.innerHTML = '';
+  tradeState.a.items.forEach(it => aBox.appendChild(renderTradeItemEl(it, 'a')));
+  tradeState.b.items.forEach(it => bBox.appendChild(renderTradeItemEl(it, 'b')));
+}
+
+function renderTradeItemEl(item, side) {
+  const div = createEl('div', { class: 'trade-item' });
+  const t = findTemplate(item.templateId);
+  const name = t ? t.item.name : item.labelledName || '(missing)';
+  const desc = t ? t.item.desc : '';
+  div.appendChild(createEl('div', { children: [ createEl('strong', { text: name }) ] }));
+  if (desc) div.appendChild(createEl('div', { class: 'muted', text: desc }));
+  const row = createEl('div', { class: 'row' });
+  row.appendChild(createEl('div', { text: 'Source: ' + (item.fromAccountId ? (findAccount(item.fromAccountId)?.name || 'unknown') : (item.simulated ? 'Simulated' : 'Random')) }));
+  row.appendChild(createEl('div', { attrs: { style: 'flex:1' } }));
+  const rem = createEl('button', { text: 'Remove' }); rem.addEventListener('click', () => { removeItemFromTrade(side, item); });
+  row.appendChild(rem);
+  div.appendChild(row);
+  return div;
+}
+
+function removeItemFromTrade(side, item) {
+  if (!tradeState) return;
+  tradeState[side].items = tradeState[side].items.filter(x => !(x.instanceUid && item.instanceUid && x.instanceUid === item.instanceUid));
+  // also remove simulated by matching templateId and simulated flag
+  tradeState[side].items = tradeState[side].items.filter(x => !(x.simulated && item.simulated && x.templateId === item.templateId));
+  renderTradeBoxes();
+}
+
+function openInventoryPopupForTrade(side) {
+  if (!tradeState) return;
+  const who = tradeState[side].who; if (!who) return;
+  if (who === 'random') return openRandomPopup(side);
+  const acc = findAccount(who); if (!acc) return alert('Account missing');
+  const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Pick item from ' + acc.name }));
+  const list = createEl('div', { attrs: { style: 'max-height:300px;overflow:auto;margin-top:8px' } });
+  const resolved = (acc.inventory || []).map(inst => ({ uid: inst.uid, templateId: inst.templateId, label: (findTemplate(inst.templateId) ? findTemplate(inst.templateId).item.name : '(missing)') })).sort((x, y) => x.label.localeCompare(y.label));
+  if (resolved.length === 0) list.appendChild(createEl('div', { class: 'muted', text: 'No items' }));
+  resolved.forEach(inst => {
+    const row = createEl('div', { class: 'row' });
+    const name = createEl('div', { text: inst.label }); const addBtn = createEl('button', { text: 'Add' });
+    const already = tradeState.a.items.concat(tradeState.b.items).some(x => x.instanceUid === inst.uid);
+    if (already) addBtn.disabled = true;
+    addBtn.addEventListener('click', () => {
+      tradeState[side].items.push({ instanceUid: inst.uid, templateId: inst.templateId, fromAccountId: who });
+      closeModal(modal); renderTradeBoxes();
+    });
+    row.appendChild(name); row.appendChild(createEl('div', { attrs: { style: 'flex:1' } })); row.appendChild(addBtn); list.appendChild(row);
+  });
+  box.appendChild(list);
+  box.appendChild(createEl('div', { class: 'row', children: [ createEl('button', { text: 'Close', on: { click: () => closeModal(modal) } }) ] })); modal.querySelector('.modal').appendChild(box);
+}
+
+function getAllTemplates() {
+  const out = [];
+  (game.shops || []).forEach(s => (s.items || []).forEach(it => out.push({ source: 'shop', parentId: s.id, item: it })));
+  (game.gachas || []).forEach(g => (g.items || []).forEach(it => out.push({ source: 'gacha', parentId: g.id, item: it })));
+  return out;
+}
+
+function pickNRandom(arr, n) {
+  const copy = arr.slice(); const out = [];
+  while (out.length < n && copy.length) { const idx = Math.floor(Math.random() * copy.length); out.push(copy.splice(idx, 1)[0]); }
+  return out;
+}
+
+function openRandomPopup(side) {
+  const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Simulated Random — choose items' }));
+  const pool = getAllTemplates(); if (pool.length === 0) box.appendChild(createEl('div', { class: 'muted', text: 'No templates available' }));
+  const list = createEl('div', { attrs: { style: 'max-height:320px;overflow:auto;margin-top:8px' } });
+  const pick = pickNRandom(pool, 5);
+  pick.forEach(tpl => {
+    const row = createEl('div', { class: 'row' }); const left = createEl('div'); left.appendChild(createEl('strong', { text: tpl.item.name })); left.appendChild(createEl('div', { class: 'muted', text: tpl.item.desc || '' })); row.appendChild(left); row.appendChild(createEl('div', { attrs: { style: 'flex:1' } })); const addBtn = createEl('button', { text: 'Add' }); addBtn.addEventListener('click', () => { tradeState[side].items.push({ templateId: tpl.item.id, simulated: true }); closeModal(modal); renderTradeBoxes(); }); row.appendChild(addBtn); list.appendChild(row);
+  });
+  box.appendChild(list);
+  const specBtn = createEl('button', { text: 'Add Specific' }); specBtn.addEventListener('click', () => { closeModal(modal); openSpecificPickerForRandom(side); });
+  box.appendChild(createEl('div', { class: 'row', children: [ specBtn, createEl('button', { text: 'Refresh', on: { click: () => { closeModal(modal); openRandomPopup(side); } } }), createEl('button', { text: 'Close', on: { click: () => closeModal(modal) } }) ] }));
+  modal.querySelector('.modal').appendChild(box);
+}
+
+function openSpecificPickerForRandom(side) {
+  const modal = createModal(); const box = createEl('div'); box.appendChild(createEl('h3', { text: 'Choose a Shop or Gacha' }));
+  const list = createEl('div');
+  (game.shops || []).forEach(s => { const row = createEl('div', { class: 'boxed' }); const r = createEl('div', { class: 'row' }); r.appendChild(createEl('strong', { text: 'Shop: ' + s.name })); const openBtn = createEl('button', { text: 'Open' }); openBtn.addEventListener('click', () => { closeModal(modal); openSpecificItemList(side, 'shop', s.id); }); r.appendChild(openBtn); row.appendChild(r); list.appendChild(row); });
+  (game.gachas || []).forEach(g => { const row = createEl('div', { class: 'boxed' }); const r = createEl('div', { class: 'row' }); r.appendChild(createEl('strong', { text: 'Gacha: ' + g.name })); const openBtn = createEl('button', { text: 'Open' }); openBtn.addEventListener('click', () => { closeModal(modal); openSpecificItemList(side, 'gacha', g.id); }); r.appendChild(openBtn); row.appendChild(r); list.appendChild(row); });
+  if (!game.shops.length && !game.gachas.length) list.appendChild(createEl('div', { class: 'muted', text: 'No shops/gachas' }));
+  box.appendChild(list); box.appendChild(createEl('div', { class: 'row', children: [ createEl('button', { text: 'Close', on: { click: () => closeModal(modal) } }) ] })); modal.querySelector('.modal').appendChild(box);
+}
+
+function openSpecificItemList(side, type, parentId) {
+  const modal = createModal(); const box = createEl('div'); const parent = type === 'shop' ? findShop(parentId) : findGacha(parentId);
+  box.appendChild(createEl('h3', { text: 'Choose an item from ' + (parent ? parent.name : '') }));
+  const list = createEl('div');
+  ((parent && parent.items) || []).forEach(it => { const row = createEl('div', { class: 'row' }); row.appendChild(createEl('div', { text: it.name })); row.appendChild(createEl('div', { attrs: { style: 'flex:1' } })); const addBtn = createEl('button', { text: 'Add' }); addBtn.addEventListener('click', () => { tradeState[side].items.push({ templateId: it.id, simulated: true }); closeModal(modal); renderTradeBoxes(); }); row.appendChild(addBtn); list.appendChild(row); });
+  if (!parent || !parent.items || parent.items.length === 0) list.appendChild(createEl('div', { class: 'muted', text: 'No items' })); box.appendChild(list); box.appendChild(createEl('div', { class: 'row', children: [ createEl('button', { text: 'Close', on: { click: () => closeModal(modal) } }) ] })); modal.querySelector('.modal').appendChild(box);
+}
+
+function executeTrade(accept) {
+  if (!tradeState) return;
+  if (!accept) { tradeState = null; document.getElementById('tradeArea').style.display = 'none'; renderAll(); return; }
+  const sideA = tradeState.a; const sideB = tradeState.b;
+  function transferInstance(uid, fromId, toId) { const from = findAccount(fromId); const to = findAccount(toId); if (!from || !to) return; const idx = (from.inventory || []).findIndex(x => x.uid === uid); if (idx === -1) return; const inst = from.inventory.splice(idx, 1)[0]; to.inventory = to.inventory || []; to.inventory.push(inst); }
+  if (sideA.who !== 'random' && sideB.who !== 'random') {
+    sideA.items.forEach(it => { if (it.instanceUid) transferInstance(it.instanceUid, sideA.who, sideB.who); });
+    sideB.items.forEach(it => { if (it.instanceUid) transferInstance(it.instanceUid, sideB.who, sideA.who); });
+    save(); tradeState = null; document.getElementById('tradeArea').style.display = 'none'; renderAll(); return;
+  }
+  const realSide = sideA.who === 'random' ? sideB : sideA; const randSide = sideA.who === 'random' ? sideA : sideB;
+  realSide.items.forEach(it => { if (it.instanceUid) { const from = findAccount(realSide.who); if (!from) return; from.inventory = (from.inventory || []).filter(x => x.uid !== it.instanceUid); } });
+  const realAcc = findAccount(realSide.who);
+  if (realAcc) { randSide.items.forEach(it => { realAcc.inventory = realAcc.inventory || []; realAcc.inventory.push({ uid: uid(), templateId: it.templateId, source: 'simulated_random' }); }); }
+  save(); tradeState = null; document.getElementById('tradeArea').style.display = 'none'; renderAll();
+}
+
+// wire add buttons
+const addA = document.getElementById('addA'); if (addA) addA.addEventListener('click', () => { if (!tradeState) return alert('Start a trade first'); openInventoryPopupForTrade('a'); });
+const addB = document.getElementById('addB'); if (addB) addB.addEventListener('click', () => { if (!tradeState) return alert('Start a trade first'); openInventoryPopupForTrade('b'); });
+
+// init
+load(); renderAll(); populateTradeDropdowns();
+
+function renderAll() { renderCreateLists(); renderAccounts(); }
+</script>
+</body>
+</html>
